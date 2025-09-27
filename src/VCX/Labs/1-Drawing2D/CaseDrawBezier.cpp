@@ -67,7 +67,7 @@ namespace VCX::Labs::Drawing2D {
         bool         anyHeld = false;
         ImVec2 const delta   = ImGui::GetIO().MouseDelta;
         ImGui::ButtonBehavior(window->Rect(), window->GetID("##io"), &hovered, &anyHeld);
-        if (! hovered) return;
+        if (_selectIdx == -1 && ! hovered) return;
         if (ImGui::IsMouseDown(_enableLeftDrag ? ImGuiMouseButton_Left : ImGuiMouseButton_Right)) {
             _recompute = true;
             // find closest point
@@ -91,9 +91,9 @@ namespace VCX::Labs::Drawing2D {
         } else {
             _selectIdx = -1;
         }
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && delta.x != 0.f)
+        if (! _enableLeftDrag && ImGui::IsMouseDown(ImGuiMouseButton_Left) && delta.x != 0.f)
             ImGui::SetScrollX(window, window->Scroll.x - delta.x);
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && delta.y != 0.f)
+        if (! _enableLeftDrag && ImGui::IsMouseDown(ImGuiMouseButton_Left) && delta.y != 0.f)
             ImGui::SetScrollY(window, window->Scroll.y - delta.y);
         if (_enableZoom && ! anyHeld && ImGui::IsItemHovered())
             Common::ImGuiHelper::ZoomTooltip(_texture, c_Size, pos);

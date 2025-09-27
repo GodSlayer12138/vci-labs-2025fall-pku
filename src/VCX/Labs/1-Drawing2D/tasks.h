@@ -18,4 +18,5 @@ namespace VCX::Labs::Drawing2D {
     void      DitheringOrdered(Common::ImageRGB &, Common::ImageRGB const &);
     void      DitheringErrorDiffuse(Common::ImageRGB &, Common::ImageRGB const &);
     void      Inpainting(Common::ImageRGB &, Common::ImageRGB const &, Common::ImageRGB const &, const glm::ivec2 & offset);
+    void      WarpImage(Common::ImageRGB &, std::array<glm::ivec2, 16> const &, Common::ImageRGB const &, std::array<glm::ivec2, 16> const &);
 }

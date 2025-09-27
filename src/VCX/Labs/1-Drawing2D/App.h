@@ -8,6 +8,7 @@
 #include "Labs/1-Drawing2D/CaseDrawFilled.h"
 #include "Labs/1-Drawing2D/CaseDrawLine.h"
 #include "Labs/1-Drawing2D/CaseFiltering.h"
+#include "Labs/1-Drawing2D/CaseImageWarping.h"
 #include "Labs/1-Drawing2D/CasePoisson.h"
 #include "Labs/1-Drawing2D/CaseSSAA.h"
 #include "Labs/Common/UI.h"
@@ -17,13 +18,14 @@ namespace VCX::Labs::Drawing2D {
     private:
         Common::UI _ui;
 
-        CaseDithering  _caseDithering;
-        CaseFiltering  _caseFiltering;
-        CasePoisson    _casePoisson;
-        CaseDrawLine   _caseDrawLine;
-        CaseDrawFilled _caseDrawFilled;
-        CaseDrawBezier _caseDrawBezier;
-        CaseSSAA       _caseSSAA;
+        CaseDithering    _caseDithering;
+        CaseFiltering    _caseFiltering;
+        CaseImageWarping _caseImageWarping;
+        CasePoisson      _casePoisson;
+        CaseDrawLine     _caseDrawLine;
+        CaseDrawFilled   _caseDrawFilled;
+        CaseDrawBezier   _caseDrawBezier;
+        CaseSSAA         _caseSSAA;
 
         std::size_t _caseId = 0;
 
@@ -35,6 +37,7 @@ namespace VCX::Labs::Drawing2D {
             _caseDrawFilled,
             _caseSSAA,
             _caseDrawBezier,
+            _caseImageWarping,
         };
 
     public:
