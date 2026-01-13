@@ -1,80 +1,23 @@
-// ==========================================================
-//  MIXBOX 2.0 (c) 2022 Secret Weapons. All rights reserved.
-//  License: Creative Commons Attribution-NonCommercial 4.0
-//  Authors: Sarka Sochorova and Ondrej Jamriska
-// ==========================================================
-//
-//   BASIC USAGE
-//
-//      mixbox_lerp(r1, g1, b1,          // 1st color
-//                  r2, g2, b2,          // 2nd color
-//                  t,                   // mixing ratio
-//                  &r, &g, &b);         // result
-//
-//   MULTI-COLOR MIXING
-//
-//      mixbox_latent z1, z2, z3, z_mix;
-//      mixbox_rgb_to_latent(r1, g1, b1, z1);
-//      mixbox_rgb_to_latent(r2, g2, b2, z2);
-//      mixbox_rgb_to_latent(r3, g3, b3, z3);
-//
-//      for (int i = 0; i < MIXBOX_LATENT_SIZE; i++) {
-//        // mix 30% of rgb1, 60% of rgb2, and 10% of rgb3
-//        z_mix[i] = 0.3f*z1[i] + 0.6f*z2[i] + 0.1f*z3[i];
-//      }
-//
-//      mixbox_latent_to_rgb(z_mix, &r, &g, &b);
-//
-//   PIGMENT COLORS
-//
-//      Cadmium Yellow                    254, 236,   0
-//      Hansa Yellow                      252, 211,   0
-//      Cadmium Orange                    255, 105,   0
-//      Cadmium Red                       255,  39,   2
-//      Quinacridone Magenta              128,   2,  46
-//      Cobalt Violet                      78,   0,  66
-//      Ultramarine Blue                   25,   0,  89
-//      Cobalt Blue                         0,  33, 133
-//      Phthalo Blue                       13,  27,  68
-//      Phthalo Green                       0,  60,  50
-//      Permanent Green                     7, 109,  22
-//      Sap Green                         107, 148,   4
-//      Burnt Sienna                      123,  72,   0
-//
-//   LICENSING
-//
-//      If you want to obtain commercial license, please
-//      contact us at: mixbox@scrtwpns.com
-//
-
 #include "mixbox.h"
 
 #include <cmath>
 
-#ifdef _MSC_VER
-    #define INLINE __forceinline
-#elif defined(__GNUC__)
-    #define INLINE inline __attribute__((always_inline))
-#else
-    #define INLINE inline
-#endif
-
-INLINE static float clamp01(float x)
+inline static float clamp01(float x)
 {
     return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x;
 }
 
-INLINE static float srgb_to_linear(float x)
+inline static float srgb_to_linear(float x)
 {
     return (x >= 0.04045f) ? std::pow((x + 0.055f) / 1.055f, 2.4f) : x/12.92f;
 }
 
-INLINE static float linear_to_srgb(float x)
+inline static float linear_to_srgb(float x)
 {
     return (x >= 0.0031308f) ? 1.055f*std::pow(x, 1.0f/2.4f) - 0.055f : 12.92f*x;
 }
 
-INLINE static void eval_polynomial(float c0, float c1, float c2, float c3, float* rgb)
+inline static void eval_polynomial(float c0, float c1, float c2, float c3, float* rgb)
 {
     float r = 0;
     float g = 0;
@@ -115,9 +58,9 @@ INLINE static void eval_polynomial(float c0, float c1, float c2, float c3, float
     rgb[2] = b;
 }
 
-INLINE static const unsigned char* mixbox_lut();
+inline static const unsigned char* mixbox_lut();
 
-INLINE static void float_rgb_to_latent(float r, float g, float b, mixbox_latent out_latent)
+inline static void float_rgb_to_latent(float r, float g, float b, mixbox_latent out_latent)
 {
     r = clamp01(r);
     g = clamp01(g);
@@ -169,7 +112,7 @@ INLINE static void float_rgb_to_latent(float r, float g, float b, mixbox_latent 
     out_latent[6] = b - mixrgb[2];
 }
 
-INLINE static void latent_to_float_rgb(mixbox_latent latent, float* out_r, float* out_g, float* out_b)
+inline static void latent_to_float_rgb(mixbox_latent latent, float* out_r, float* out_g, float* out_b)
 {
     float rgb[3];
     eval_polynomial(latent[0], latent[1], latent[2], latent[3], rgb);
@@ -178,7 +121,7 @@ INLINE static void latent_to_float_rgb(mixbox_latent latent, float* out_r, float
     *out_b = clamp01(rgb[2] + latent[6]);
 }
 
-INLINE static void latent_to_rgb(mixbox_latent latent, unsigned char* out_r, unsigned char* out_g, unsigned char* out_b)
+inline static void latent_to_rgb(mixbox_latent latent, unsigned char* out_r, unsigned char* out_g, unsigned char* out_b)
 {
     float r, g, b;
     latent_to_float_rgb(latent, &r, &g, &b);
@@ -187,12 +130,12 @@ INLINE static void latent_to_rgb(mixbox_latent latent, unsigned char* out_r, uns
     *out_b = (unsigned char)((int)(b*255.0f + 0.5f));
 }
 
-INLINE static void rgb_to_latent(unsigned char r, unsigned char g, unsigned char b, mixbox_latent out_latent)
+inline static void rgb_to_latent(unsigned char r, unsigned char g, unsigned char b, mixbox_latent out_latent)
 {
     float_rgb_to_latent(float(r) / 255.0f, float(g) / 255.0f, float(b) / 255.0f, out_latent);
 }
 
-INLINE static void linear_float_rgb_to_latent(float r, float g, float b, mixbox_latent out_latent)
+inline static void linear_float_rgb_to_latent(float r, float g, float b, mixbox_latent out_latent)
 {
     float_rgb_to_latent(linear_to_srgb(r),
                         linear_to_srgb(g),
@@ -200,7 +143,7 @@ INLINE static void linear_float_rgb_to_latent(float r, float g, float b, mixbox_
                         out_latent);
 }
 
-INLINE static void latent_to_linear_float_rgb(mixbox_latent latent, float* out_r, float* out_g, float* out_b)
+inline static void latent_to_linear_float_rgb(mixbox_latent latent, float* out_r, float* out_g, float* out_b)
 {
     float rgb[3];
     latent_to_float_rgb(latent, &rgb[0], &rgb[1], &rgb[2]);
@@ -347,18 +290,11 @@ static const char* mixbox_lut_compressed[] =
     "XZj&R.1Hl&ChFI@'EKVm(+0c^M3Y3jEMHpG&`9N)mF(CqAQ4oW3/DMM`Gr&D_DDa(K(<^edfCc2rP.UuSAj+:48jT[A<-]D'#5*tA<e)Zx7=8e@RO$%GDwW9b?<[r8eA@A-R/#k($fh4X[l4vj2U]ZI>BHm8tXcJ%gi5ub%i7hK5>Gf=e$^%YnWG2)4G38QnE,:R`lMfH/)qt$)###"
 };
 
-#ifdef _MSC_VER
-typedef unsigned short uint16;
-typedef   signed short int16;
-typedef unsigned int   uint32;
-typedef   signed int   int32;
-#else
 #include <stdint.h>
 typedef uint16_t uint16;
 typedef int16_t  int16;
 typedef uint32_t uint32;
 typedef int32_t  int32;
-#endif
 
 #define ZFAST_BITS 9
 #define ZFAST_MASK ((1 << ZFAST_BITS) - 1)
@@ -373,7 +309,7 @@ struct zhuffman
     uint16 value[288];
 };
 
-INLINE static int bitreverse16(int n)
+inline static int bitreverse16(int n)
 {
     n = ((n & 0xAAAA) >>  1) | ((n & 0x5555) << 1);
     n = ((n & 0xCCCC) >>  2) | ((n & 0x3333) << 2);
@@ -382,7 +318,7 @@ INLINE static int bitreverse16(int n)
     return n;
 }
 
-INLINE static int bit_reverse(int v, int bits)
+inline static int bit_reverse(int v, int bits)
 {
     return bitreverse16(v) >> (16-bits);
 }
@@ -450,12 +386,12 @@ struct zbuf
     zhuffman z_length, z_distance;
 };
 
-INLINE static unsigned char decode_b85_char(char c)
+inline static unsigned char decode_b85_char(char c)
 {
     return (c >= 92) ? c - 36 : c - 35;
 }
 
-INLINE static unsigned char zget8(zbuf* z)
+inline static unsigned char zget8(zbuf* z)
 {
     const int num_rows = sizeof(mixbox_lut_compressed) / sizeof(mixbox_lut_compressed[0]);
 
@@ -501,7 +437,7 @@ static void fill_bits(zbuf* z)
     } while (z->num_bits <= 24);
 }
 
-INLINE static unsigned int zreceive(zbuf* z, int n)
+inline static unsigned int zreceive(zbuf* z, int n)
 {
     unsigned int k;
     if (z->num_bits < n) fill_bits(z);
@@ -527,7 +463,7 @@ static int zhuffman_decode_slowpath(zbuf* a, zhuffman* z)
     return z->value[b];
 }
 
-INLINE static int zhuffman_decode(zbuf* a, zhuffman* z)
+inline static int zhuffman_decode(zbuf* a, zhuffman* z)
 {
     int b,s;
     if (a->num_bits < 16) {
@@ -691,7 +627,7 @@ static int decompress(char* obuffer, int olen)
     return 1;
 }
 
-INLINE static const unsigned char* mixbox_lut()
+inline static const unsigned char* mixbox_lut()
 {
     struct mixbox_init_t
     {

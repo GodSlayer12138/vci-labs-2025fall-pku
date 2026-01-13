@@ -27,8 +27,8 @@ namespace VCX::Labs::Final {
         Engine::GL::UniqueTexture2D   _texture;
 
         // Color mixing parameters (0-255 range)
-        int _color1[3] = {25, 33, 133};    // Ultramarine Blue
-        int _color2[3] = {254, 236, 0};    // Cadmium Yellow
+        int _color1[3] = {0, 33, 133};    // Cobalt Blue
+        int _color2[3] = {254, 211, 0};    // Hansa Yellow
         float _mixRatio = 0.5f;
 
         // Brush parameters
