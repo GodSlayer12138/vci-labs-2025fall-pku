@@ -90,6 +90,20 @@ namespace VCX::Labs::Final {
                           ImGuiColorEditFlags_None, ImVec2(40, 20));
         ImGui::SameLine();
         ImGui::Text("(%d, %d, %d)", _color1[0], _color1[1], _color1[2]);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Picker##1")) {
+            ImGui::OpenPopup("ColorPicker1");
+        }
+        if (ImGui::BeginPopup("ColorPicker1")) {
+            float c1[3] = { _color1[0] / 255.0f, _color1[1] / 255.0f, _color1[2] / 255.0f };
+            if (ImGui::ColorPicker3("##picker1", c1, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB)) {
+                _color1[0] = static_cast<int>(std::round(c1[0] * 255.0f));
+                _color1[1] = static_cast<int>(std::round(c1[1] * 255.0f));
+                _color1[2] = static_cast<int>(std::round(c1[2] * 255.0f));
+            }
+            if (ImGui::Button("Close##p1")) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
         
         ImGui::Spacing();
         
@@ -102,6 +116,20 @@ namespace VCX::Labs::Final {
                           ImGuiColorEditFlags_None, ImVec2(40, 20));
         ImGui::SameLine();
         ImGui::Text("(%d, %d, %d)", _color2[0], _color2[1], _color2[2]);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Picker##2")) {
+            ImGui::OpenPopup("ColorPicker2");
+        }
+        if (ImGui::BeginPopup("ColorPicker2")) {
+            float c2[3] = { _color2[0] / 255.0f, _color2[1] / 255.0f, _color2[2] / 255.0f };
+            if (ImGui::ColorPicker3("##picker2", c2, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB)) {
+                _color2[0] = static_cast<int>(std::round(c2[0] * 255.0f));
+                _color2[1] = static_cast<int>(std::round(c2[1] * 255.0f));
+                _color2[2] = static_cast<int>(std::round(c2[2] * 255.0f));
+            }
+            if (ImGui::Button("Close##p2")) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
         
         ImGui::Spacing();
         ImGui::SliderFloat("Mix Ratio", &_mixRatio, 0.0f, 1.0f, "%.2f");
