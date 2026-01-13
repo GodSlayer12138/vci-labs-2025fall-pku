@@ -6,7 +6,7 @@
 #include "Labs/Common/ICase.h"
 #include "Labs/Common/ImageRGB.h"
 
-namespace VCX::Labs::GettingStarted {
+namespace VCX::Labs::Final {
 
     class CaseResizable : public Common::ICase {
     public:

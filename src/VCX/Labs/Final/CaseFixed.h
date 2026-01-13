@@ -4,7 +4,7 @@
 #include "Labs/Common/ICase.h"
 #include "Labs/Common/ImageRGB.h"
 
-namespace VCX::Labs::GettingStarted {
+namespace VCX::Labs::Final {
 
     class CaseFixed : public Common::ICase {
     public:

@@ -1,10 +1,10 @@
 #include "Assets/bundled.h"
-#include "Labs/0-GettingStarted/App.h"
+#include "Labs/Final/App.h"
 
 int main() {
     using namespace VCX;
-    return Engine::RunApp<Labs::GettingStarted::App>(Engine::AppContextOptions {
-        .Title      = "VCX Labs 0: Getting Started",
+    return Engine::RunApp<Labs::Final::App>(Engine::AppContextOptions {
+        .Title      = "VCX Labs Final",
         .WindowSize = { 800, 600 },
         .FontSize   = 16,
 

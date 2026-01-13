@@ -3,11 +3,11 @@
 #include <vector>
 
 #include "Engine/app.h"
-#include "Labs/0-GettingStarted/CaseFixed.h"
-#include "Labs/0-GettingStarted/CaseResizable.h"
+#include "Labs/Final/CaseFixed.h"
+#include "Labs/Final/CaseResizable.h"
 #include "Labs/Common/UI.h"
 
-namespace VCX::Labs::GettingStarted {
+namespace VCX::Labs::Final {
     class App : public Engine::IApp {
     private:
         Common::UI    _ui;

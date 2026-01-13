@@ -1,8 +1,8 @@
-#include "Labs/0-GettingStarted/CaseResizable.h"
+#include "Labs/Final/CaseResizable.h"
 #include "Labs/Common/ImageRGB.h"
 #include "Labs/Common/ImGuiHelper.h"
 
-namespace VCX::Labs::GettingStarted {
+namespace VCX::Labs::Final {
     static constexpr auto c_PositionData = std::to_array<glm::vec2>({
         { -0.5, -0.5 },
         {  0  ,  0.5 },

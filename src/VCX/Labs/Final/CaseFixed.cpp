@@ -1,10 +1,10 @@
 #include <algorithm>
 #include <array>
 
-#include "Labs/0-GettingStarted/CaseFixed.h"
+#include "Labs/Final/CaseFixed.h"
 #include "Labs/Common/ImGuiHelper.h"
 
-namespace VCX::Labs::GettingStarted {
+namespace VCX::Labs::Final {
     static constexpr auto c_Sizes = std::to_array<std::pair<std::uint32_t, std::uint32_t>>({
         { 320U, 320U },
         { 640U, 640U } 

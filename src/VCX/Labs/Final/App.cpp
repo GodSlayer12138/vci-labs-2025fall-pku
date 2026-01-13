@@ -1,6 +1,6 @@
-#include "Labs/0-GettingStarted/App.h"
+#include "Labs/Final/App.h"
 
-namespace VCX::Labs::GettingStarted {
+namespace VCX::Labs::Final {
 
     App::App() :
         _ui(Labs::Common::UIOptions { }) {
