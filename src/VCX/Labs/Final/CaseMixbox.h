@@ -1,0 +1,48 @@
+#pragma once
+
+#include "Engine/GL/Frame.hpp"
+#include "Labs/Common/ICase.h"
+#include "Labs/Common/ImageRGB.h"
+#include "Labs/Final/Mixbox.h"
+
+namespace VCX::Labs::Final {
+
+    class CaseMixbox : public Common::ICase {
+    public:
+        CaseMixbox();
+
+        virtual std::string_view const GetName() override { return "Mixbox Color Mixing"; }
+        
+        virtual void OnSetupPropsUI() override;
+        virtual Common::CaseRenderResult OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) override;
+        virtual void OnProcessInput(ImVec2 const & pos) override;
+
+    private:
+        void ClearCanvas();
+        void DrawBrushStroke(int x, int y);
+        glm::vec3 GetCurrentBrushColor() const;
+
+        Engine::GL::UniqueRenderFrame _frame;
+        Common::ImageRGB              _canvas;
+        Engine::GL::UniqueTexture2D   _texture;
+
+        // Color mixing parameters (0-255 range)
+        int _color1[3] = {25, 33, 133};    // Ultramarine Blue
+        int _color2[3] = {254, 236, 0};    // Cadmium Yellow
+        float _mixRatio = 0.5f;
+
+        // Brush parameters
+        int   _brushSize       = 15;
+        bool  _useRgbMixing    = false;  // Toggle between Mixbox and standard RGB mixing
+
+        // Canvas parameters
+        int   _canvasWidth     = 800;
+        int   _canvasHeight    = 600;
+        bool  _enableZoom      = true;
+
+        // Drawing state
+        bool  _isDrawing       = false;
+        ImVec2 _lastDrawPos    = ImVec2(-1, -1);
+    };
+
+} // namespace VCX::Labs::Final

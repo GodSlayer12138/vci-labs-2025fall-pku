@@ -3,8 +3,7 @@
 #include <vector>
 
 #include "Engine/app.h"
-#include "Labs/Final/CaseFixed.h"
-#include "Labs/Final/CaseResizable.h"
+#include "Labs/Final/CaseMixbox.h"
 #include "Labs/Common/UI.h"
 
 namespace VCX::Labs::Final {
@@ -12,12 +11,11 @@ namespace VCX::Labs::Final {
     private:
         Common::UI    _ui;
 
-        CaseFixed     _caseFixed;
-        CaseResizable _caseResizable;
+        CaseMixbox    _caseMixbox;
 
         std::size_t   _caseId = 0;
 
-        std::vector<std::reference_wrapper<Common::ICase>> _cases = { _caseFixed, _caseResizable };
+        std::vector<std::reference_wrapper<Common::ICase>> _cases = { _caseMixbox };
 
     public:
         App();
