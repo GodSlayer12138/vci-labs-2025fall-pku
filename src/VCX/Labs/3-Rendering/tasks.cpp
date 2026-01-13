@@ -24,8 +24,20 @@ namespace VCX::Labs::Rendering {
     /******************* 1. Ray-triangle intersection *****************/
     bool IntersectTriangle(Intersection & output, Ray const & ray, glm::vec3 const & p1, glm::vec3 const & p2, glm::vec3 const & p3) {
         // your code here
-
-        return false;
+        glm::vec3 E1 = p2 - p1;
+        glm::vec3 E2 = p3 - p1;
+        glm::vec3 D = ray.Direction;
+        glm::vec3 T = ray.Origin - p1;
+        glm::vec3 P = glm::cross(D, E2);
+        glm::vec3 Q = glm::cross(T, E1);
+        float t = glm::dot(Q, E2) / glm::dot(P, E1);
+        float u = glm::dot(P, T) / glm::dot(P, E1);
+        float v = glm::dot(Q, D) / glm::dot(P, E1);
+        if (t < 0 || u < 0.0f || v < 0.0f || u + v > 1.0f) return false;
+        output.t = t;
+        output.u = u;
+        output.v = v;
+        return true;
     }
 
     glm::vec3 RayTrace(const RayIntersector & intersector, Ray ray, int maxDepth, bool enableShadow) {
@@ -45,7 +57,7 @@ namespace VCX::Labs::Rendering {
             glm::vec3 result(0.0f);
             /******************* 2. Whitted-style ray tracing *****************/
             // your code here
-
+            result += intersector.InternalScene->AmbientIntensity * kd;
             for (const Engine::Light & light : intersector.InternalScene->Lights) {
                 glm::vec3 l;
                 float     attenuation;
@@ -55,17 +67,53 @@ namespace VCX::Labs::Rendering {
                     attenuation = 1.0f / glm::dot(l, l);
                     if (enableShadow) {
                         // your code here
+                        l = glm::normalize(l);
+                        Ray shadow_ray(pos, l);
+                        while(true) {
+                            auto hit = intersector.IntersectRay(shadow_ray);
+                            if (!hit.IntersectState) break;
+                            if (glm::length(hit.IntersectPosition - pos) > glm::length(light.Position - pos)) break;
+                            
+                            float Alpha = hit.IntersectAlbedo.w;
+                            if(Alpha >= 0.2f) {
+                                attenuation = 0.0f;
+                                break;
+                            }
+                            else shadow_ray = Ray(hit.IntersectPosition, l);
+                        }
                     }
                 } else if (light.Type == Engine::LightType::Directional) {
                     l           = light.Direction;
                     attenuation = 1.0f;
                     if (enableShadow) {
                         // your code here
+                        l = glm::normalize(l);
+                        Ray shadow_ray(pos, l);
+                        while(true) {
+                            auto hit = intersector.IntersectRay(shadow_ray);
+                            if (!hit.IntersectState) break;
+                            float Alpha = hit.IntersectAlbedo.w;
+                            if(Alpha >= 0.2f) {
+                                attenuation = 0.0f;
+                                break;
+                            }
+                            else {
+                                shadow_ray = Ray(hit.IntersectPosition, l);
+                            }
+                        }
                     }
                 }
 
                 /******************* 2. Whitted-style ray tracing *****************/
                 // your code here
+                l = glm::normalize(l);
+                glm::vec3 diffuse = kd * light.Intensity * attenuation * glm::max(0.0f, glm::dot(n, l));
+                result += diffuse;
+
+                glm::vec3 v = glm::normalize(-ray.Direction);
+                glm::vec3 h = glm::normalize(v + l);
+                glm::vec3 specular = ks * light.Intensity * attenuation * glm::pow(glm::max(0.0f, glm::dot(n, h)), shininess);
+                result += specular;
             }
 
             if (alpha < 0.9) {

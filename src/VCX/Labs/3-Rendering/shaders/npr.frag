@@ -29,7 +29,21 @@ uniform vec3 u_WarmColor;
 
 vec3 Shade (vec3 lightDir, vec3 normal) {
     // your code here:
-    return vec3(0);
+    float NdotL = dot(normalize(normal), normalize(lightDir));
+    float weight;
+    if (NdotL < 0.125) {
+        weight = 0.0;
+    } else if (NdotL < 0.375) {
+        weight = 0.25;
+    } else if (NdotL < 0.625) {
+        weight = 0.5;
+    } else if (NdotL < 0.875) {
+        weight = 0.75;
+    } else {
+        weight = 1.0;
+    }
+    vec3 k = weight * u_WarmColor + (1 - weight) * u_CoolColor;
+    return k;
 }
 
 void main() {

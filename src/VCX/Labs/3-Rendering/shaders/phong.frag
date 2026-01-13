@@ -38,7 +38,16 @@ uniform sampler2D u_HeightMap;
 
 vec3 Shade(vec3 lightIntensity, vec3 lightDir, vec3 normal, vec3 viewDir, vec3 diffuseColor, vec3 specularColor, float shininess) {
     // your code here:
-    return vec3(0);
+    vec3 L = vec3(0);
+    if (u_UseBlinn){
+        vec3 h = normalize(lightDir + viewDir);
+        L = diffuseColor * lightIntensity * max(0, dot(normal, lightDir)) + specularColor * lightIntensity * pow(max(0, dot(normal, h)), shininess);
+    }
+    else {
+        vec3 r = -lightDir + 2 * dot(lightDir, normal) * normal;
+        L = diffuseColor * lightIntensity * max(0, dot(normal, lightDir)) + specularColor * lightIntensity * pow(max(0, dot(r, viewDir)), shininess);
+    }
+    return L;
 }
 
 vec3 GetNormal() {
