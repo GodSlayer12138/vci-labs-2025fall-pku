@@ -33,7 +33,6 @@ namespace VCX::Labs::Final {
 
         // Brush parameters
         int   _brushSize       = 15;
-        bool  _useRgbMixing    = false;  // Toggle between Mixbox and standard RGB mixing
 
         // Canvas parameters
         int   _canvasWidth     = 1600;
@@ -42,6 +41,11 @@ namespace VCX::Labs::Final {
         // Drawing state
         bool  _isDrawing       = false;
         ImVec2 _lastDrawPos    = ImVec2(-1, -1);
+        bool  _canvasDirty     = true;  // Track if canvas needs texture update
+        
+        // Cached brush color (avoid recomputing every pixel)
+        glm::vec3 _cachedBrushColor = glm::vec3(0.0f);
+        unsigned char _cachedBrushR = 0, _cachedBrushG = 0, _cachedBrushB = 0;
     };
 
 } // namespace VCX::Labs::Final

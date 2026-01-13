@@ -16,68 +16,60 @@ namespace VCX::Labs::Final {
 
     void CaseMixbox::ClearCanvas() {
         _canvas = Common::CreatePureImageRGB(_canvasWidth, _canvasHeight, glm::vec3(1.0f, 1.0f, 1.0f));
+        _canvasDirty = true;
     }
 
     glm::vec3 CaseMixbox::GetCurrentBrushColor() const {
-        if (_useRgbMixing) {
-            // Standard RGB linear interpolation (0-255 range)
-            int r = static_cast<int>(_color1[0] * (1.0f - _mixRatio) + _color2[0] * _mixRatio);
-            int g = static_cast<int>(_color1[1] * (1.0f - _mixRatio) + _color2[1] * _mixRatio);
-            int b = static_cast<int>(_color1[2] * (1.0f - _mixRatio) + _color2[2] * _mixRatio);
-            return glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
-        } else {
-            // Mixbox pigment-based mixing
-            unsigned char r, g, b;
-            mixbox_lerp(_color1[0], _color1[1], _color1[2],
-                       _color2[0], _color2[1], _color2[2],
-                       _mixRatio,
-                       &r, &g, &b);
-            return glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
-        }
+        // Mixbox pigment-based mixing
+        unsigned char r, g, b;
+        mixbox_lerp(_color1[0], _color1[1], _color1[2],
+                   _color2[0], _color2[1], _color2[2],
+                   _mixRatio,
+                   &r, &g, &b);
+        return glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
     }
 
     void CaseMixbox::DrawBrushStroke(int cx, int cy) {
-        glm::vec3 brushColor = GetCurrentBrushColor();
-        
         int radius = _brushSize;
+        int radiusSq = radius * radius;
+        
+        // Fixed low opacity for accumulative painting
+        constexpr float alpha = 0.03f;
+        
         for (int dx = -radius; dx <= radius; ++dx) {
+            int dxSq = dx * dx;
             for (int dy = -radius; dy <= radius; ++dy) {
+                // Use squared distance to avoid sqrt
+                int distSq = dxSq + dy * dy;
+                if (distSq > radiusSq) continue;
+                
                 int x = cx + dx;
                 int y = cy + dy;
                 
                 // Check bounds
                 if (x < 0 || x >= _canvasWidth || y < 0 || y >= _canvasHeight) continue;
                 
-                // Circular brush with soft edges
-                float dist = std::sqrt(static_cast<float>(dx * dx + dy * dy));
-                if (dist > radius) continue;
-                
-                // Soft edge falloff
-                float alpha = 1.0f - (dist / radius);
-                alpha = alpha * alpha; // Quadratic falloff for softer edges
-                alpha *= 0.8f; // Increase opacity for more visible strokes
-                
-                // Blend with existing color
+                // Get existing color
                 glm::vec3 existing = _canvas.At(x, y);
-                glm::vec3 blended = glm::mix(existing, brushColor, alpha);
-                _canvas.At(x, y) = blended;
+                
+                // Use mixbox for color blending to simulate paint mixing
+                unsigned char existingR = static_cast<unsigned char>(existing.r * 255.0f);
+                unsigned char existingG = static_cast<unsigned char>(existing.g * 255.0f);
+                unsigned char existingB = static_cast<unsigned char>(existing.b * 255.0f);
+                
+                unsigned char blendedR, blendedG, blendedB;
+                mixbox_lerp(existingR, existingG, existingB,
+                           _cachedBrushR, _cachedBrushG, _cachedBrushB,
+                           alpha,
+                           &blendedR, &blendedG, &blendedB);
+                
+                _canvas.At(x, y) = glm::vec3(blendedR / 255.0f, blendedG / 255.0f, blendedB / 255.0f);
             }
         }
+        _canvasDirty = true;
     }
 
     void CaseMixbox::OnSetupPropsUI() {
-        ImGui::Text("Color Mixing Mode");
-        ImGui::Separator();
-        
-        if (ImGui::RadioButton("Mixbox (Pigment)", !_useRgbMixing)) {
-            _useRgbMixing = false;
-        }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Standard RGB", _useRgbMixing)) {
-            _useRgbMixing = true;
-        }
-        
-        ImGui::Spacing();
         ImGui::Text("Colors to Mix (0-255)");
         ImGui::Separator();
         
@@ -157,7 +149,10 @@ namespace VCX::Labs::Final {
     }
 
     Common::CaseRenderResult CaseMixbox::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
-        _texture.Update(_canvas);
+        if (_canvasDirty) {
+            _texture.Update(_canvas);
+            _canvasDirty = false;
+        }
         
         return Common::CaseRenderResult {
             .Fixed     = true,
@@ -187,24 +182,53 @@ namespace VCX::Labs::Final {
         // Handle drawing
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
             if (x >= 0 && x < _canvasWidth && y >= 0 && y < _canvasHeight) {
-                if (_isDrawing && _lastDrawPos.x >= 0) {
-                    // Interpolate between last position and current for smooth strokes
-                    float lastX = _lastDrawPos.x;
-                    float lastY = _lastDrawPos.y;
-                    float dist = std::sqrt((x - lastX) * (x - lastX) + (y - lastY) * (y - lastY));
-                    int steps = std::max(1, static_cast<int>(dist / 2.0f));
+                // Only draw if mouse has moved or this is the first click
+                bool shouldDraw = false;
+                
+                if (!_isDrawing) {
+                    // First click - draw once
+                    shouldDraw = true;
+                    _isDrawing = true;
+                } else if (_lastDrawPos.x >= 0) {
+                    // Check if mouse has moved
+                    float dx = x - _lastDrawPos.x;
+                    float dy = y - _lastDrawPos.y;
+                    float distMoved = std::sqrt(dx * dx + dy * dy);
                     
-                    for (int i = 0; i <= steps; ++i) {
-                        float t = static_cast<float>(i) / steps;
-                        int interpX = static_cast<int>(lastX + t * (x - lastX));
-                        int interpY = static_cast<int>(lastY + t * (y - lastY));
-                        DrawBrushStroke(interpX, interpY);
+                    // Only draw if moved at least 1 pixel
+                    if (distMoved >= 1.0f) {
+                        shouldDraw = true;
                     }
-                } else {
-                    DrawBrushStroke(x, y);
                 }
-                _isDrawing = true;
-                _lastDrawPos = ImVec2(static_cast<float>(x), static_cast<float>(y));
+                
+                if (shouldDraw) {
+                    // Update cached brush color before drawing
+                    _cachedBrushColor = GetCurrentBrushColor();
+                    _cachedBrushR = static_cast<unsigned char>(_cachedBrushColor.r * 255.0f);
+                    _cachedBrushG = static_cast<unsigned char>(_cachedBrushColor.g * 255.0f);
+                    _cachedBrushB = static_cast<unsigned char>(_cachedBrushColor.b * 255.0f);
+                    
+                    if (_isDrawing && _lastDrawPos.x >= 0 && _lastDrawPos.x != x && _lastDrawPos.y != y) {
+                        // Interpolate between last position and current for smooth strokes
+                        float lastX = _lastDrawPos.x;
+                        float lastY = _lastDrawPos.y;
+                        float dist = std::sqrt((x - lastX) * (x - lastX) + (y - lastY) * (y - lastY));
+                        // Use larger step size (brush radius / 2) to reduce overlapping draws
+                        float stepSize = std::max(1.0f, static_cast<float>(_brushSize) * 0.5f);
+                        int steps = std::max(1, static_cast<int>(dist / stepSize));
+                        
+                        for (int i = 1; i <= steps; ++i) {
+                            float t = static_cast<float>(i) / steps;
+                            int interpX = static_cast<int>(lastX + t * (x - lastX));
+                            int interpY = static_cast<int>(lastY + t * (y - lastY));
+                            DrawBrushStroke(interpX, interpY);
+                        }
+                    } else {
+                        DrawBrushStroke(x, y);
+                    }
+                    
+                    _lastDrawPos = ImVec2(static_cast<float>(x), static_cast<float>(y));
+                }
             }
         } else {
             _isDrawing = false;
