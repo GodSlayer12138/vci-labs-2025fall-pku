@@ -5,7 +5,7 @@ int main() {
     using namespace VCX;
     return Engine::RunApp<Labs::Final::App>(Engine::AppContextOptions {
         .Title      = "VCX Labs Final",
-        .WindowSize = { 800, 600 },
+        .WindowSize = { 1280, 720 },
         .FontSize   = 16,
 
         .IconFileNames = Assets::DefaultIcons,

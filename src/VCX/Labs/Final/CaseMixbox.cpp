@@ -154,9 +154,6 @@ namespace VCX::Labs::Final {
         if (ImGui::Button("Clear Canvas")) {
             ClearCanvas();
         }
-        
-        ImGui::Spacing();
-        ImGui::Checkbox("Zoom Tooltip", &_enableZoom);
     }
 
     Common::CaseRenderResult CaseMixbox::OnRender(std::pair<std::uint32_t, std::uint32_t> const desiredSize) {
@@ -221,13 +218,7 @@ namespace VCX::Labs::Final {
             if (delta.y != 0.f)
                 ImGui::SetScrollY(window, window->Scroll.y - delta.y);
         }
-        
-        // Zoom tooltip
-        if (_enableZoom && !anyHeld && ImGui::IsItemHovered() && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-            Common::ImGuiHelper::ZoomTooltip(_texture, 
-                { static_cast<std::uint32_t>(_canvasWidth), static_cast<std::uint32_t>(_canvasHeight) }, 
-                pos);
-        }
     }
 
 } // namespace VCX::Labs::Final
+

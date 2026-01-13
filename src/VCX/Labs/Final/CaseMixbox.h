@@ -36,9 +36,8 @@ namespace VCX::Labs::Final {
         bool  _useRgbMixing    = false;  // Toggle between Mixbox and standard RGB mixing
 
         // Canvas parameters
-        int   _canvasWidth     = 800;
-        int   _canvasHeight    = 600;
-        bool  _enableZoom      = true;
+        int   _canvasWidth     = 1600;
+        int   _canvasHeight    = 1200;
 
         // Drawing state
         bool  _isDrawing       = false;
