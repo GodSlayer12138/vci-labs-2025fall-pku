@@ -35,6 +35,15 @@ namespace VCX::Labs::GeometryProcessing {
                 auto v           = G.Vertex(i);
                 auto neighbors   = v->Neighbors();
                 // your code here:
+                glm::vec3 pos    = prev_mesh.Positions[i];
+                std::size_t n    = neighbors.size();
+                float u;
+                if (n > 3) u = 3.0 / 8 / n;
+                else u = 3.0 / 16;
+                auto new_pos = (1 - n * u) * pos;
+                for (std::size_t j = 0; j < n; ++j)
+                    new_pos += u * prev_mesh.Positions[neighbors[j]];
+                curr_mesh.Positions.push_back(new_pos);
             }
             // We create an array to store indices of the newly generated vertices.
             // Note: newIndices[i][j] is the index of vertex generated on the "opposite edge" of j-th
@@ -49,6 +58,9 @@ namespace VCX::Labs::GeometryProcessing {
                 if (! eTwin) {
                     // When there is no twin halfedge (so, e is a boundary edge):
                     // your code here: generate the new vertex and add it into curr_mesh.Positions.
+                    auto new_pos = prev_mesh.Positions[e->To()] + prev_mesh.Positions[e->From()];
+                    new_pos /= 2;
+                    curr_mesh.Positions.push_back(new_pos);
                 } else {
                     // When the twin halfedge exists, we should also record:
                     //     newIndices[face index][vertex index] = index of the newly generated vertex
@@ -56,6 +68,14 @@ namespace VCX::Labs::GeometryProcessing {
                     //     we have to record twice.
                     newIndices[G.IndexOf(eTwin->Face())][e->TwinEdge()->EdgeLabel()] = curr_mesh.Positions.size();
                     // your code here: generate the new vertex and add it into curr_mesh.Positions.
+                    auto v0 = e->To();
+                    auto v2 = e->From();
+                    auto v1 = e->NextEdge()->To();
+                    auto v3 = e->TwinEdge()->NextEdge()->To();
+                    auto new_pos = 3.0f * prev_mesh.Positions[v0] + 3.0f * prev_mesh.Positions[v2]
+                                 + prev_mesh.Positions[v1] + prev_mesh.Positions[v3];
+                    new_pos /= 8;
+                    curr_mesh.Positions.push_back(new_pos);
                 }
             }
 
@@ -74,7 +94,10 @@ namespace VCX::Labs::GeometryProcessing {
                 //     when inserting new face indices.
                 // toInsert[i][j] stores the j-th vertex index of the i-th sub-face.
                 std::uint32_t toInsert[4][3] = {
-                    // your code here:
+                    { v0, m2, m1 },
+                    { v1, m0, m2 },
+                    { v2, m1, m0 },
+                    { m0, m1, m2 }
                 };
                 // Do insertion.
                 curr_mesh.Indices.insert(
@@ -110,10 +133,28 @@ namespace VCX::Labs::GeometryProcessing {
 
         // Set boundary UVs for boundary vertices.
         // your code here: directly edit output.TexCoords
-
+        for (std::size_t i = 0; i < input.Positions.size(); ++i)
+        {
+            if (G.Vertex(i)->OnBoundary())
+            {
+                output.TexCoords[i] = input.Positions[i];
+                output.TexCoords[i] = glm::normalize(output.TexCoords[i]);
+                output.TexCoords[i] = output.TexCoords[i] / 2.0f + 0.5f;
+            }
+        }
         // Solve equation via Gauss-Seidel Iterative Method.
         for (int k = 0; k < numIterations; ++k) {
-            // your code here:
+            for (std::size_t i = 0; i < input.Positions.size(); ++i)
+            {
+                if (G.Vertex(i)->OnBoundary()) continue;
+                auto v         = G.Vertex(i);
+                auto neighbors = v->Neighbors();
+                std::size_t n  = v->Neighbors().size();
+                auto sum = glm::vec2(0.0f, 0.0f);
+                for (std::size_t j = 0; j < n; ++j)
+                    sum += output.TexCoords[neighbors[j]];
+                output.TexCoords[i] = sum / (float)n;
+            }
         }
     }
 
@@ -139,6 +180,21 @@ namespace VCX::Labs::GeometryProcessing {
             [&G, &output] (DCEL::Triangle const * f) -> glm::mat4 {
                 glm::mat4 Kp;
                 // your code here:
+                auto v0 = output.Positions[f->VertexIndex(0)];
+                auto v1 = output.Positions[f->VertexIndex(1)];
+                auto v2 = output.Positions[f->VertexIndex(2)];
+                auto va = v1 - v0;
+                auto vb = v2 - v0;
+                auto n = glm::cross(va, vb);
+                n = glm::normalize(n);
+                float a = n.x;
+                float b = n.y;
+                float c = n.z;
+                float d = -glm::dot(n, v0);
+                Kp[0][0] = a * a; Kp[0][1] = a * b; Kp[0][2] = a * c; Kp[0][3] = a * d;
+                Kp[1][0] = a * b; Kp[1][1] = b * b; Kp[1][2] = b * c; Kp[1][3] = b * d;
+                Kp[2][0] = a * c; Kp[2][1] = b * c; Kp[2][2] = c * c; Kp[2][3] = c * d;
+                Kp[3][0] = a * d; Kp[3][1] = b * d; Kp[3][2] = c * d; Kp[3][3] = d * d;
                 return Kp;
             }
         };
@@ -159,7 +215,29 @@ namespace VCX::Labs::GeometryProcessing {
                 glm::mat4 const & Q
             ) -> ContractionPair {
                 // your code here:
-                return {};
+                glm::mat4 Qq = Q;
+                Qq[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+                if (glm::abs(glm::determinant(Qq)) < 1e-3)
+                {
+                    glm::vec4 q1 = glm::vec4(p1, 1.0f);
+                    glm::vec4 q2 = glm::vec4(p2, 1.0f);
+                    glm::vec4 mid = (q1 + q2) / 2.0f;
+                    float cost1 = glm::dot(q1, Q * q1);
+                    float cost2 = glm::dot(q2, Q * q2);
+                    float costm = glm::dot(mid, Q * mid);
+                    if (cost1 <= cost2 && cost1 <= costm)
+                        return ContractionPair{ edge, q1, cost1 };
+                    else if (cost2 <= cost1 && cost2 <= costm)
+                        return ContractionPair{ edge, q2, cost2 };
+                    else
+                        return ContractionPair{ edge, mid, costm };
+                }
+                else
+                {
+                    glm::vec4 v = glm::transpose(glm::inverse(Qq)) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+                    float cost = glm::dot(v, Q * v);
+                    return ContractionPair{ edge, v, cost };
+                }
             }
         };
 
@@ -168,7 +246,7 @@ namespace VCX::Labs::GeometryProcessing {
         // Qv:       $Qv[idx]$ is the Q matrix of vertex with index $idx$
         // Kf:       $Kf[idx]$ is the Kp matrix of face with index $idx$
         std::unordered_map<DCEL::EdgeIdx, std::size_t> pair_map; 
-        std::vector<ContractionPair>                  pairs; 
+        std::vector<ContractionPair>                   pairs; 
         std::vector<glm::mat4>                         Qv(G.NumOfVertices(), glm::mat4(0));
         std::vector<glm::mat4>                         Kf(G.NumOfFaces(),    glm::mat4(0));
 
@@ -214,10 +292,10 @@ namespace VCX::Labs::GeometryProcessing {
             // result: the contract result
             // ring:   the edge ring of vertex v1
             ContractionPair & top    = pairs[min_idx];
-            auto               v1     = top.edge->From();
-            auto               v2     = top.edge->To();
-            auto               result = G.Contract(top.edge);
-            auto               ring   = G.Vertex(v1)->Ring();
+            auto              v1     = top.edge->From();
+            auto              v2     = top.edge->To();
+            auto              result = G.Contract(top.edge);
+            auto              ring   = G.Vertex(v1)->Ring();
 
             top.edge             = nullptr;            // The contraction has already been done, so the pair is no longer valid. Mark it as invalid.
             output.Positions[v1] = top.targetPosition; // Update the positions.
@@ -242,16 +320,40 @@ namespace VCX::Labs::GeometryProcessing {
             for (auto e : ring) {
                 // your code here:
                 //     1. Compute the new Kp matrix for $e->Face()$.
+                auto new_Kp = UpdateQ(e->Face());
                 //     2. According to the difference between the old Kp (in $Kf$) and the new Kp (computed in step 1),
                 //        update Q matrix of each vertex on the ring (update $Qv$).
+                auto old_Kp = Kf[G.IndexOf(e->Face())];
+                auto diff_Kp = new_Kp - old_Kp;
+                Qv[e->From()] += diff_Kp;
+                Qv[e->To()]   += diff_Kp;
                 //     3. Update Q matrix of vertex v1 as well (update $Qv$).
+                Qv[v1] += new_Kp;
                 //     4. Update $Kf$.
+                Kf[G.IndexOf(e->Face())] = new_Kp;
             }
 
             // Finally, as the Q matrix changed, we should update the relative $ContractionPair$ in $pairs$.
             // Any pair with the Q matrix of its endpoints changed, should be remade by $MakePair$.
             // your code here:
-
+            for (auto e : ring)
+            {
+                auto u1 = e->From();
+                auto temp_ring = G.Vertex(u1)->Ring();
+                for (auto e2 : temp_ring)
+                {
+                    if (!G.IsContractable(e2->NextEdge()))
+                        pairs[pair_map[G.IndexOf(e2->NextEdge())]].edge = nullptr;
+                    else
+                    {
+                        auto u2= e2->To();
+                        auto new_pair= MakePair(e2->NextEdge(), output.Positions[u2], output.Positions[u1], Qv[u2] + Qv[u1]);
+                        pairs[pair_map[G.IndexOf(e2->NextEdge())]].targetPosition = new_pair.targetPosition;
+                        pairs[pair_map[G.IndexOf(e2->NextEdge())]].cost = new_pair.cost;
+                    }
+                }
+            }
+            
         }
 
         // In the end, we check if the result mesh is watertight and manifold.
@@ -269,10 +371,15 @@ namespace VCX::Labs::GeometryProcessing {
         static constexpr auto GetCotangent {
             [] (glm::vec3 vAngle, glm::vec3 v1, glm::vec3 v2) -> float {
                 // your code here:
-                return 0.0f;
+                glm::vec3 va = glm::normalize(v1 - vAngle);
+                glm::vec3 vb = glm::normalize(v2 - vAngle);
+                float cos = glm::dot(va, vb);
+                float sin = glm::length(glm::cross(va, vb));
+                if (sin < 1e-4f) sin = 1e-4f;
+                return glm::abs(cos / sin);
             }
         };
-
+        
         DCEL G(input);
         if (! G.IsManifold()) {
             spdlog::warn("VCX::Labs::GeometryProcessing::SmoothMesh(..): Non-manifold mesh.");
@@ -283,13 +390,42 @@ namespace VCX::Labs::GeometryProcessing {
             spdlog::warn("VCX::Labs::GeometryProcessing::SmoothMesh(..): Non-watertight mesh.");
             return;
         }
-
+        
         Engine::SurfaceMesh prev_mesh;
         prev_mesh.Positions = input.Positions;
         for (std::uint32_t iter = 0; iter < numIterations; ++iter) {
             Engine::SurfaceMesh curr_mesh = prev_mesh;
             for (std::size_t i = 0; i < input.Positions.size(); ++i) {
                 // your code here: curr_mesh.Positions[i] = ...
+                auto v         = G.Vertex(i);
+                auto neighbors = v->Neighbors();
+                auto rings     = v->Ring();
+                glm::vec3 temp = glm::vec3(0.0f);
+                float weight_sum = 0.0f;
+                glm::vec3 sum = glm::vec3(0.0f);
+                if (useUniformWeight)
+                {
+                    for (std::size_t j = 0; j < neighbors.size(); ++j)
+                    {
+                        temp += prev_mesh.Positions[neighbors[j]];
+                    }
+                    temp /= neighbors.size();
+                    curr_mesh.Positions[i] = prev_mesh.Positions[i] + lambda * (temp - prev_mesh.Positions[i]);
+                }
+                else
+                {
+                    for (std::size_t j = 0; j < rings.size(); ++j)
+                    {
+                        auto p = rings[j]->To();
+                        auto q = rings[j]->From();
+                        float cot1 = GetCotangent(prev_mesh.Positions[p], prev_mesh.Positions[i], prev_mesh.Positions[q]);
+                        float cot2 = GetCotangent(prev_mesh.Positions[q], prev_mesh.Positions[i], prev_mesh.Positions[p]);
+                        sum += cot1 * prev_mesh.Positions[q] + cot2 * prev_mesh.Positions[p];
+                        weight_sum += cot1 + cot2;
+                    }
+                    temp = sum / weight_sum;
+                    curr_mesh.Positions[i] = prev_mesh.Positions[i] + lambda * (temp - prev_mesh.Positions[i]);
+                }
             }
             // Move curr_mesh to prev_mesh.
             prev_mesh.Swap(curr_mesh);
@@ -303,5 +439,44 @@ namespace VCX::Labs::GeometryProcessing {
     /******************* 5. Marching Cubes *****************/
     void MarchingCubes(Engine::SurfaceMesh & output, const std::function<float(const glm::vec3 &)> & sdf, const glm::vec3 & grid_min, const float dx, const int n) {
         // your code here:
+        glm::vec3 unit[3] = {
+            glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f)
+        };
+        for (std::size_t x = 0; x < n; ++x)
+        {
+            for (std::size_t y = 0; y < n; ++y)
+            {
+                for (std::size_t z = 0; z < n; ++z)
+                {
+                    glm::vec3 v0 = grid_min + glm::vec3(x * dx, y * dx, z * dx);
+                    uint8_t v = 0;
+                    for (std::size_t i = 0; i < 8; ++i)
+                    {
+                        glm::vec3 corner = v0 + glm::vec3((i & 1) * dx, ((i >> 1) & 1) * dx, (i >> 2) * dx);
+                        if (sdf(corner) > 0) v |= (1 << i);
+                    }
+                    std::size_t k = 0;
+                    while (c_EdgeOrdsTable[v][3 * k] != -1 && k < 4)
+                    {
+                        uint32_t e[3];
+                        for (std::size_t j = 0; j < 3; ++j)
+                        {
+                            e[j] = c_EdgeOrdsTable[v][3 * k + j];
+                            glm::vec3 v1 = v0 + dx * (e[j] & 1) * unit[((e[j] >> 2) + 1) % 3] + dx * ((e[j] >> 1) & 1) * unit[((e[j] >> 2) + 2) % 3];
+                            glm::vec3 v2 = v1 + dx * unit[e[j] >> 2];
+                            float val1 = sdf(v1);
+                            float val2 = sdf(v2);
+                            float t = val1 / (val1 - val2);
+                            glm::vec3 pos = v1 + t * (v2 - v1);
+                            output.Indices.push_back(output.Positions.size() + 2 - 2 * j);
+                            output.Positions.push_back(pos);
+                        }
+                        ++k;
+                    }
+                }
+            }
+        }
     }
 } // namespace VCX::Labs::GeometryProcessing
