@@ -20,21 +20,21 @@ namespace VCX::Labs::Final {
     }
 
     glm::vec3 CaseMixbox::GetCurrentBrushColor() const {
-        // Mixbox pigment-based mixing
-        unsigned char r, g, b;
-        mixbox_lerp(_color1[0], _color1[1], _color1[2],
-                   _color2[0], _color2[1], _color2[2],
-                   _mixRatio,
-                   &r, &g, &b);
-        return glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
+        // Return selected palette color
+        return glm::vec3(
+            _palette[_selectedColorIndex][0] / 255.0f,
+            _palette[_selectedColorIndex][1] / 255.0f,
+            _palette[_selectedColorIndex][2] / 255.0f
+        );
     }
 
     void CaseMixbox::DrawBrushStroke(int cx, int cy, float dirX, float dirY) {
         int halfWidth = _brushSize;
         int thickness = static_cast<int>(_brushSize / 3); // Thickness in movement direction (rectangle depth)
         
-        // Fixed low opacity for accumulative painting
-        constexpr float alpha = 0.05f;
+        // Adjustable opacity for accumulative painting (base alpha 0.05)
+        const float baseAlpha = 0.05f;
+        const float alpha = baseAlpha * (_brushOpacity / 100.0f);
         
         // Normalize direction vector
         float len = std::sqrt(dirX * dirX + dirY * dirY);
@@ -81,77 +81,191 @@ namespace VCX::Labs::Final {
     }
 
     void CaseMixbox::OnSetupPropsUI() {
-        ImGui::Text("Colors to Mix (0-255)");
+        ImGui::Text("Color Palette");
         ImGui::Separator();
         
-        // Color 1 with 0-255 sliders
+        // 4x4 color grid
+        const float buttonSize = 50.0f;
+        const float spacing = 4.0f;
+        
+        for (int row = 0; row < 4; ++row) {
+            for (int col = 0; col < 4; ++col) {
+                int index = row * 4 + col;
+                
+                if (col > 0) ImGui::SameLine(0.0f, spacing);
+                
+                ImGui::PushID(index);
+                
+                // Get color
+                ImVec4 color(_palette[index][0] / 255.0f,
+                            _palette[index][1] / 255.0f,
+                            _palette[index][2] / 255.0f,
+                            1.0f);
+                
+                // Draw border if selected
+                if (_selectedColorIndex == index) {
+                    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+                    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3.0f);
+                }
+                
+                // Color button
+                if (ImGui::ColorButton("##colorBtn", color, 
+                                      ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoBorder,
+                                      ImVec2(buttonSize, buttonSize))) {
+                    _selectedColorIndex = index;
+                }
+                
+                if (_selectedColorIndex == index) {
+                    ImGui::PopStyleVar();
+                    ImGui::PopStyleColor();
+                }
+                
+                // Right-click for custom colors (last 3 slots)
+                if (index >= 13 && ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                    ImGui::OpenPopup("customColorPicker");
+                }
+                
+                // Custom color picker popup
+                if (index >= 13 && ImGui::BeginPopup("customColorPicker")) {
+                    float tempColor[3] = {
+                        _palette[index][0] / 255.0f,
+                        _palette[index][1] / 255.0f,
+                        _palette[index][2] / 255.0f
+                    };
+                    if (ImGui::ColorPicker3("##picker", tempColor,
+                                           ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB)) {
+                        _palette[index][0] = static_cast<int>(std::round(tempColor[0] * 255.0f));
+                        _palette[index][1] = static_cast<int>(std::round(tempColor[1] * 255.0f));
+                        _palette[index][2] = static_cast<int>(std::round(tempColor[2] * 255.0f));
+                    }
+                    if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
+                    ImGui::EndPopup();
+                }
+                
+                ImGui::PopID();
+            }
+        }
+        
+        ImGui::Spacing();
+        ImGui::Text("Current Color:");
+        glm::vec3 currentColor = GetCurrentBrushColor();
+        int r = static_cast<int>(currentColor.r * 255);
+        int g = static_cast<int>(currentColor.g * 255);
+        int b = static_cast<int>(currentColor.b * 255);
+        ImGui::ColorButton("##current", ImVec4(currentColor.r, currentColor.g, currentColor.b, 1.0f),
+                          ImGuiColorEditFlags_None, ImVec2(80, 30));
+        ImGui::SameLine();
+        ImGui::Text("(%d, %d, %d)", r, g, b);
+        ImGui::Text("Right-click last 3 to customize");
+        
+        ImGui::Spacing();
+        ImGui::Text("Color Mixer");
+        ImGui::Separator();
+        
+        // Color 1 selection
         ImGui::Text("Color 1:");
-        ImGui::SliderInt("R##1", &_color1[0], 0, 255);
-        ImGui::SliderInt("G##1", &_color1[1], 0, 255);
-        ImGui::SliderInt("B##1", &_color1[2], 0, 255);
-        ImGui::ColorButton("##color1", ImVec4(_color1[0]/255.0f, _color1[1]/255.0f, _color1[2]/255.0f, 1.0f),
-                          ImGuiColorEditFlags_None, ImVec2(40, 20));
-        ImGui::SameLine();
-        ImGui::Text("(%d, %d, %d)", _color1[0], _color1[1], _color1[2]);
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Picker##1")) {
-            ImGui::OpenPopup("ColorPicker1");
+        ImVec4 mixColor1(_palette[_mixerColor1Index][0] / 255.0f,
+                        _palette[_mixerColor1Index][1] / 255.0f,
+                        _palette[_mixerColor1Index][2] / 255.0f, 1.0f);
+        if (ImGui::ColorButton("##mixColor1", mixColor1, ImGuiColorEditFlags_None, ImVec2(40, 40))) {
+            ImGui::OpenPopup("SelectMixColor1");
         }
-        if (ImGui::BeginPopup("ColorPicker1")) {
-            float c1[3] = { _color1[0] / 255.0f, _color1[1] / 255.0f, _color1[2] / 255.0f };
-            if (ImGui::ColorPicker3("##picker1", c1, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB)) {
-                _color1[0] = static_cast<int>(std::round(c1[0] * 255.0f));
-                _color1[1] = static_cast<int>(std::round(c1[1] * 255.0f));
-                _color1[2] = static_cast<int>(std::round(c1[2] * 255.0f));
+        ImGui::SameLine();
+        ImGui::Text("(%d, %d, %d)", _palette[_mixerColor1Index][0], 
+                    _palette[_mixerColor1Index][1], _palette[_mixerColor1Index][2]);
+        
+        // Popup for selecting color 1 from palette
+        if (ImGui::BeginPopup("SelectMixColor1")) {
+            ImGui::Text("Select Color 1");
+            const float smallButtonSize = 35.0f;
+            for (int row = 0; row < 4; ++row) {
+                for (int col = 0; col < 4; ++col) {
+                    int index = row * 4 + col;
+                    if (col > 0) ImGui::SameLine();
+                    ImGui::PushID(index);
+                    ImVec4 c(_palette[index][0] / 255.0f,
+                            _palette[index][1] / 255.0f,
+                            _palette[index][2] / 255.0f, 1.0f);
+                    if (ImGui::ColorButton("##sel", c, ImGuiColorEditFlags_None, 
+                                          ImVec2(smallButtonSize, smallButtonSize))) {
+                        _mixerColor1Index = index;
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::PopID();
+                }
             }
-            if (ImGui::Button("Close##p1")) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
         
-        ImGui::Spacing();
-        
-        // Color 2 with 0-255 sliders
+        // Color 2 selection
         ImGui::Text("Color 2:");
-        ImGui::SliderInt("R##2", &_color2[0], 0, 255);
-        ImGui::SliderInt("G##2", &_color2[1], 0, 255);
-        ImGui::SliderInt("B##2", &_color2[2], 0, 255);
-        ImGui::ColorButton("##color2", ImVec4(_color2[0]/255.0f, _color2[1]/255.0f, _color2[2]/255.0f, 1.0f),
-                          ImGuiColorEditFlags_None, ImVec2(40, 20));
-        ImGui::SameLine();
-        ImGui::Text("(%d, %d, %d)", _color2[0], _color2[1], _color2[2]);
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Picker##2")) {
-            ImGui::OpenPopup("ColorPicker2");
+        ImVec4 mixColor2(_palette[_mixerColor2Index][0] / 255.0f,
+                        _palette[_mixerColor2Index][1] / 255.0f,
+                        _palette[_mixerColor2Index][2] / 255.0f, 1.0f);
+        if (ImGui::ColorButton("##mixColor2", mixColor2, ImGuiColorEditFlags_None, ImVec2(40, 40))) {
+            ImGui::OpenPopup("SelectMixColor2");
         }
-        if (ImGui::BeginPopup("ColorPicker2")) {
-            float c2[3] = { _color2[0] / 255.0f, _color2[1] / 255.0f, _color2[2] / 255.0f };
-            if (ImGui::ColorPicker3("##picker2", c2, ImGuiColorEditFlags_DisplayRGB | ImGuiColorEditFlags_InputRGB)) {
-                _color2[0] = static_cast<int>(std::round(c2[0] * 255.0f));
-                _color2[1] = static_cast<int>(std::round(c2[1] * 255.0f));
-                _color2[2] = static_cast<int>(std::round(c2[2] * 255.0f));
+        ImGui::SameLine();
+        ImGui::Text("(%d, %d, %d)", _palette[_mixerColor2Index][0], 
+                    _palette[_mixerColor2Index][1], _palette[_mixerColor2Index][2]);
+        
+        // Popup for selecting color 2 from palette
+        if (ImGui::BeginPopup("SelectMixColor2")) {
+            ImGui::Text("Select Color 2");
+            const float smallButtonSize = 35.0f;
+            for (int row = 0; row < 4; ++row) {
+                for (int col = 0; col < 4; ++col) {
+                    int index = row * 4 + col;
+                    if (col > 0) ImGui::SameLine();
+                    ImGui::PushID(index);
+                    ImVec4 c(_palette[index][0] / 255.0f,
+                            _palette[index][1] / 255.0f,
+                            _palette[index][2] / 255.0f, 1.0f);
+                    if (ImGui::ColorButton("##sel", c, ImGuiColorEditFlags_None, 
+                                          ImVec2(smallButtonSize, smallButtonSize))) {
+                        _mixerColor2Index = index;
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::PopID();
+                }
             }
-            if (ImGui::Button("Close##p2")) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
         
-        ImGui::Spacing();
+        // Mix ratio slider
         ImGui::SliderFloat("Mix Ratio", &_mixRatio, 0.0f, 1.0f, "%.2f");
         
-        ImGui::Spacing();
-        ImGui::Text("Mixed Color:");
-        glm::vec3 mixedColor = GetCurrentBrushColor();
-        int mixedR = static_cast<int>(mixedColor.r * 255);
-        int mixedG = static_cast<int>(mixedColor.g * 255);
-        int mixedB = static_cast<int>(mixedColor.b * 255);
-        ImGui::ColorButton("##mixed", ImVec4(mixedColor.r, mixedColor.g, mixedColor.b, 1.0f), 
-                           ImGuiColorEditFlags_None, ImVec2(80, 30));
+        // Show mixed result
+        unsigned char mixedR, mixedG, mixedB;
+        mixbox_lerp(_palette[_mixerColor1Index][0], _palette[_mixerColor1Index][1], _palette[_mixerColor1Index][2],
+                   _palette[_mixerColor2Index][0], _palette[_mixerColor2Index][1], _palette[_mixerColor2Index][2],
+                   _mixRatio,
+                   &mixedR, &mixedG, &mixedB);
+        ImGui::Text("Mixed Result:");
+        ImVec4 mixedColor(mixedR / 255.0f, mixedG / 255.0f, mixedB / 255.0f, 1.0f);
+        ImGui::ColorButton("##mixedResult", mixedColor, ImGuiColorEditFlags_None, ImVec2(60, 40));
         ImGui::SameLine();
         ImGui::Text("(%d, %d, %d)", mixedR, mixedG, mixedB);
+        if (ImGui::Button("Apply to Brush")) {
+            // Find an empty custom slot or use the last one
+            int targetIndex = 15; // Default to last custom slot
+            for (int i = 13; i < 16; ++i) {
+                if (_palette[i][0] == 255 && _palette[i][1] == 255 && _palette[i][2] == 255) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+            _palette[targetIndex][0] = mixedR;
+            _palette[targetIndex][1] = mixedG;
+            _palette[targetIndex][2] = mixedB;
+            _selectedColorIndex = targetIndex;
+        }
         
         ImGui::Spacing();
         ImGui::Text("Brush Settings");
         ImGui::Separator();
-        ImGui::SliderInt("Brush Size", &_brushSize, 1, 50);
+        ImGui::SliderInt("Brush Size", &_brushSize, 20, 50);
+        ImGui::SliderInt("Brush Opacity", &_brushOpacity, 0, 100, "%d%%");
         
         ImGui::Spacing();
         if (ImGui::Button("Clear Canvas")) {

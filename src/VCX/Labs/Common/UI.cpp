@@ -262,7 +262,7 @@ namespace VCX::Labs::Common {
             };
             _layout.CaseChildSize = {
                 _layout.SideWindowSize.x,
-                std::floor(_layout.SideWindowSize.y * .2f) - _layout.CaseChildPosition.y
+                std::floor(_layout.SideWindowSize.y * .1f) - _layout.CaseChildPosition.y
             };
             _layout.UserChildPosition = {
                 _layout.SideWindowPosition.x,
