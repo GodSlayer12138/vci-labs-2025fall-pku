@@ -7,16 +7,6 @@ inline static float clamp01(float x)
     return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x;
 }
 
-inline static float srgb_to_linear(float x)
-{
-    return (x >= 0.04045f) ? std::pow((x + 0.055f) / 1.055f, 2.4f) : x/12.92f;
-}
-
-inline static float linear_to_srgb(float x)
-{
-    return (x >= 0.0031308f) ? 1.055f*std::pow(x, 1.0f/2.4f) - 0.055f : 12.92f*x;
-}
-
 inline static void eval_polynomial(float c0, float c1, float c2, float c3, float* rgb)
 {
     float r = 0;
@@ -135,53 +125,6 @@ inline static void rgb_to_latent(unsigned char r, unsigned char g, unsigned char
     float_rgb_to_latent(float(r) / 255.0f, float(g) / 255.0f, float(b) / 255.0f, out_latent);
 }
 
-inline static void linear_float_rgb_to_latent(float r, float g, float b, mixbox_latent out_latent)
-{
-    float_rgb_to_latent(linear_to_srgb(r),
-                        linear_to_srgb(g),
-                        linear_to_srgb(b),
-                        out_latent);
-}
-
-inline static void latent_to_linear_float_rgb(mixbox_latent latent, float* out_r, float* out_g, float* out_b)
-{
-    float rgb[3];
-    latent_to_float_rgb(latent, &rgb[0], &rgb[1], &rgb[2]);
-    *out_r = srgb_to_linear(rgb[0]);
-    *out_g = srgb_to_linear(rgb[1]);
-    *out_b = srgb_to_linear(rgb[2]);
-}
-
-void mixbox_rgb_to_latent(unsigned char r, unsigned char g, unsigned char b, mixbox_latent out_latent)
-{
-    rgb_to_latent(r, g, b, out_latent);
-}
-
-void mixbox_latent_to_rgb(mixbox_latent latent, unsigned char* out_r, unsigned char* out_g, unsigned char* out_b)
-{
-    latent_to_rgb(latent, out_r, out_g, out_b);
-}
-
-void mixbox_float_rgb_to_latent(float r, float g, float b, mixbox_latent out_latent)
-{
-    float_rgb_to_latent(r, g, b, out_latent);
-}
-
-void mixbox_linear_float_rgb_to_latent(float r, float g, float b, mixbox_latent out_latent)
-{
-    linear_float_rgb_to_latent(r, g, b, out_latent);
-}
-
-void mixbox_latent_to_float_rgb(mixbox_latent latent, float* out_r, float* out_g, float* out_b)
-{
-    latent_to_float_rgb(latent, out_r, out_g, out_b);
-}
-
-void mixbox_latent_to_linear_float_rgb(mixbox_latent latent, float* out_r, float* out_g, float* out_b)
-{
-    latent_to_linear_float_rgb(latent, out_r, out_g, out_b);
-}
-
 void mixbox_lerp(unsigned char r1, unsigned char g1, unsigned char b1,
                  unsigned char r2, unsigned char g2, unsigned char b2,
                  float t,
@@ -201,48 +144,6 @@ void mixbox_lerp(unsigned char r1, unsigned char g1, unsigned char b1,
     }
 
     latent_to_rgb(latent_mix, out_r, out_g, out_b);
-}
-
-void mixbox_lerp_float(float r1, float g1, float b1,
-                         float r2, float g2, float b2,
-                         float t,
-                         float* out_r, float* out_g, float* out_b)
-{
-    mixbox_latent latent1;
-    mixbox_latent latent2;
-
-    float_rgb_to_latent(r1, g1, b1, latent1);
-    float_rgb_to_latent(r2, g2, b2, latent2);
-
-    mixbox_latent latent_mix;
-
-    for (int i = 0; i < MIXBOX_LATENT_SIZE; i++)
-    {
-    latent_mix[i] = (1.0f-t)*latent1[i] + t*latent2[i];
-    }
-
-    latent_to_float_rgb(latent_mix, out_r, out_g, out_b);
-}
-
-void mixbox_lerp_linear_float(float r1, float g1, float b1,
-                                float r2, float g2, float b2,
-                                float t,
-                                float* out_r, float* out_g, float* out_b)
-{
-    mixbox_latent latent1;
-    mixbox_latent latent2;
-
-    linear_float_rgb_to_latent(r1, g1, b1, latent1);
-    linear_float_rgb_to_latent(r2, g2, b2, latent2);
-
-    mixbox_latent latent_mix;
-
-    for (int i = 0; i < MIXBOX_LATENT_SIZE; i++)
-    {
-    latent_mix[i] = (1.0f-t)*latent1[i] + t*latent2[i];
-    }
-
-    latent_to_linear_float_rgb(latent_mix, out_r, out_g, out_b);
 }
 
 static const char* mixbox_lut_compressed[] =
