@@ -29,22 +29,33 @@ namespace VCX::Labs::Final {
         return glm::vec3(r / 255.0f, g / 255.0f, b / 255.0f);
     }
 
-    void CaseMixbox::DrawBrushStroke(int cx, int cy) {
-        int radius = _brushSize;
-        int radiusSq = radius * radius;
+    void CaseMixbox::DrawBrushStroke(int cx, int cy, float dirX, float dirY) {
+        int halfWidth = _brushSize;
+        int thickness = static_cast<int>(_brushSize / 3); // Thickness in movement direction (rectangle depth)
         
         // Fixed low opacity for accumulative painting
-        constexpr float alpha = 0.03f;
+        constexpr float alpha = 0.05f;
         
-        for (int dx = -radius; dx <= radius; ++dx) {
-            int dxSq = dx * dx;
-            for (int dy = -radius; dy <= radius; ++dy) {
-                // Use squared distance to avoid sqrt
-                int distSq = dxSq + dy * dy;
-                if (distSq > radiusSq) continue;
-                
-                int x = cx + dx;
-                int y = cy + dy;
+        // Normalize direction vector
+        float len = std::sqrt(dirX * dirX + dirY * dirY);
+        if (len < 0.001f) {
+            // Default direction if no movement
+            dirX = 1.0f;
+            dirY = 0.0f;
+            len = 1.0f;
+        }
+        dirX /= len;
+        dirY /= len;
+        
+        // Perpendicular direction (rotate 90 degrees)
+        float perpX = -dirY;
+        float perpY = dirX;
+        
+        // Draw rectangular brush: width perpendicular to movement, thickness along movement
+        for (int j = -thickness; j <= thickness; ++j) {
+            for (int i = -halfWidth; i <= halfWidth; ++i) {
+                int x = cx + static_cast<int>(i * perpX + j * dirX);
+                int y = cy + static_cast<int>(i * perpY + j * dirY);
                 
                 // Check bounds
                 if (x < 0 || x >= _canvasWidth || y < 0 || y >= _canvasHeight) continue;
@@ -182,13 +193,13 @@ namespace VCX::Labs::Final {
         // Handle drawing
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
             if (x >= 0 && x < _canvasWidth && y >= 0 && y < _canvasHeight) {
-                // Only draw if mouse has moved or this is the first click
+                // Only draw after the first click when mouse moves
                 bool shouldDraw = false;
                 
                 if (!_isDrawing) {
-                    // First click - draw once
-                    shouldDraw = true;
+                    // First click - just record position, don't draw
                     _isDrawing = true;
+                    _lastDrawPos = ImVec2(static_cast<float>(x), static_cast<float>(y));
                 } else if (_lastDrawPos.x >= 0) {
                     // Check if mouse has moved
                     float dx = x - _lastDrawPos.x;
@@ -208,23 +219,31 @@ namespace VCX::Labs::Final {
                     _cachedBrushG = static_cast<unsigned char>(_cachedBrushColor.g * 255.0f);
                     _cachedBrushB = static_cast<unsigned char>(_cachedBrushColor.b * 255.0f);
                     
-                    if (_isDrawing && _lastDrawPos.x >= 0 && _lastDrawPos.x != x && _lastDrawPos.y != y) {
+                    // Calculate movement direction
+                    float dirX = 1.0f;
+                    float dirY = 0.0f;
+                    if (_isDrawing && _lastDrawPos.x >= 0) {
+                        dirX = x - _lastDrawPos.x;
+                        dirY = y - _lastDrawPos.y;
+                    }
+                    
+                    if (_isDrawing && _lastDrawPos.x >= 0 && (_lastDrawPos.x != x || _lastDrawPos.y != y)) {
                         // Interpolate between last position and current for smooth strokes
                         float lastX = _lastDrawPos.x;
                         float lastY = _lastDrawPos.y;
                         float dist = std::sqrt((x - lastX) * (x - lastX) + (y - lastY) * (y - lastY));
-                        // Use larger step size (brush radius / 2) to reduce overlapping draws
-                        float stepSize = std::max(1.0f, static_cast<float>(_brushSize) * 0.5f);
+                        // Use smaller step size for denser brush strokes
+                        float stepSize = std::max(0.5f, static_cast<float>(_brushSize) * 0.15f);
                         int steps = std::max(1, static_cast<int>(dist / stepSize));
                         
                         for (int i = 1; i <= steps; ++i) {
                             float t = static_cast<float>(i) / steps;
                             int interpX = static_cast<int>(lastX + t * (x - lastX));
                             int interpY = static_cast<int>(lastY + t * (y - lastY));
-                            DrawBrushStroke(interpX, interpY);
+                            DrawBrushStroke(interpX, interpY, dirX, dirY);
                         }
                     } else {
-                        DrawBrushStroke(x, y);
+                        DrawBrushStroke(x, y, dirX, dirY);
                     }
                     
                     _lastDrawPos = ImVec2(static_cast<float>(x), static_cast<float>(y));

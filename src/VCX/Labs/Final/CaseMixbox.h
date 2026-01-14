@@ -19,7 +19,7 @@ namespace VCX::Labs::Final {
 
     private:
         void ClearCanvas();
-        void DrawBrushStroke(int x, int y);
+        void DrawBrushStroke(int x, int y, float dirX = 1.0f, float dirY = 0.0f);
         glm::vec3 GetCurrentBrushColor() const;
 
         Engine::GL::UniqueRenderFrame _frame;
